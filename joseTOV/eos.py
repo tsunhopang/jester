@@ -77,7 +77,12 @@ class Interpolate_EOS_model(object):
                 dloge_dlogps,
             )
         )
-        return ns, ps, hs, es, dloge_dlogps
+        
+        cs2 = jnp.gradient(p, e)
+        # TODO: figure this out!
+        mu = jnp.zeros_like(cs2)
+        
+        return ns, ps, hs, es, dloge_dlogps, mu, cs2
 
     # TODO: remove?
     # def energy_density_from_pseudo_enthalpy(self, h: Float):
@@ -639,6 +644,40 @@ def construct_family(eos: tuple,
     # calculate the tidal deformability
     lambdas = 2.0 / 3.0 * ks * jnp.power(cs, -5.0)
     
+    # TODO: perhaps put a boolean here to flag whether or not to do this, or do we always want to do this?
+    # Limit masses to be below MTOV
+    ms, rs, lambdas = utils.limit_by_MTOV(ms, rs, lambdas)
+
+    return jnp.log(pcs), ms, rs, lambdas
+
+### TODO: remove/merge: 
+
+def construct_family_rahul(eos: tuple,
+                           ndat: Int=50, 
+                           min_nsat: Float=2) -> tuple[Float[Array, "ndat"], Float[Array, "ndat"], Float[Array, "ndat"], Float[Array, "ndat"]]:
+    """
+    Solve the TOV equations and generate the M, R and Lambda curves.
+
+    Args:
+        eos (tuple): Tuple of the EOS data (ns, ps, hs, es).
+        ndat (int, optional): Number of datapoints used when constructing the central pressure grid. Defaults to 50.
+        min_nsat (int, optional): Starting density for central pressure in numbers of nsat (assumed to be 0.16 fm^-3). Defaults to 2.
+
+    Returns:
+        tuple[Float[Array, "ndat"], Float[Array, "ndat"], Float[Array, "ndat"], Float[Array, "ndat"]]: log(pcs), masses in solar masses, radii in km, and dimensionless tidal deformabilities
+    """
+    # Construct the dictionary
+    ps, hs, es, cs2 = eos
+    h_c_array = jnp.linspace(0.04, jnp.max(hs), ndat)
+
+    # TODO: conversions needed still?
+    pcs, ms, rs, lambdas = tov.tov_solver_rahul(ps, es, cs2, h_c_array)
+
+    # # convert the mass to solar mass
+    # ms /= utils.solar_mass_in_meter
+    # # convert the radius to km
+    # rs /= 1e3
+
     # TODO: perhaps put a boolean here to flag whether or not to do this, or do we always want to do this?
     # Limit masses to be below MTOV
     ms, rs, lambdas = utils.limit_by_MTOV(ms, rs, lambdas)
