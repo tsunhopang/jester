@@ -122,6 +122,7 @@ class MetaModel_EOS_model(Interpolate_EOS_model):
         # density parameters
         nsat: Float = 0.16,
         nmin_nsat: Float = 0.1,
+        nmin_MM_nsat: Float = 0.12 / 0.16,
         nmax_nsat: Float = 12,
         ndat: Int = 200,
         # crust parameters
@@ -143,6 +144,7 @@ class MetaModel_EOS_model(Interpolate_EOS_model):
         self.N = 4 # TODO: this is fixed in the metamodeling papers, but we might want to extend this in the future
         
         self.min_nsat = nmin_nsat
+        self.nmin_MM_nsat = nmin_MM_nsat
         self.nmax_nsat = nmax_nsat
         self.ndat = ndat
         self.max_n_crust_nsat = max_n_crust_nsat
@@ -189,7 +191,7 @@ class MetaModel_EOS_model(Interpolate_EOS_model):
         # Create density arrays
         self.nmax = nmax_nsat * self.nsat
         self.ndat = ndat
-        self.n_metamodel = jnp.linspace(self.nmin, self.nmax, self.ndat, endpoint = False)
+        self.n_metamodel = jnp.linspace(self.nmin_MM_nsat, self.nmax, self.ndat, endpoint = False)
         self.ns_spline = jnp.append(self.ns_crust, self.n_metamodel)
         self.n_connection = jnp.linspace(self.max_n_crust + 1e-5, self.nmin, self.ndat_spline, endpoint = False)
         
