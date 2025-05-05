@@ -1,53 +1,39 @@
 # this script contain utility functions
+import jax
 from jax import vmap
 import jax.numpy as jnp
 from functools import partial
 from jaxtyping import Array, Float
 from interpax import interp1d as interpax_interp1d
+from unxt import Quantity
+
+jax.config.update("jax_enable_x64", True)
 
 #################################
 ### CONSTANTS AND CONVERSIONS ###
 #################################
 
 # to avoid additional dependecy on scipy
-eV = 1.602176634e-19
-c = 299792458.0
-G = 6.6743e-11
-Msun = 1.988409870698051e30
-hbarc = 197.3269804593025  # in MeV fm
-hbar = hbarc # TODO: check if must be updated, this is just taken from Rahul's code
-m_p = 938.2720881604904  # in MeV
-m_n = 939.5654205203889  # in MeV
-m = (m_p + m_n) / 2.0  # in MeV, average nucleonic mass defined by Margueron et al
-m_e = 0.510998 # mass electron in MeV
-solar_mass_in_meter = Msun * G / c / c # solar mass in geometric unit
+# in conventional unit system
+c = Quantity(299792458.0, 'm s-1')
+G = Quantity(6.6743e-11, 'kg-1 m3 s-2')
+Msun = Quantity(1.988409870698051e30, 'kg')
+hbar = Quantity(197.3269804593025, 'MeV fm')
+# Used under c = 1
+hbarc = hbar
+m_p = Quantity(938.2720881604904, 'MeV')
+m_n = Quantity(939.5654205203889, 'MeV')
+m_e = Quantity(0.510998, 'MeV')
+m = (m_p + m_n) / 2.0  # Average nucleonic mass defined by Margueron et al
 
-# simple conversions
-fm_to_m = 1e-15
-MeV_to_J = 1e6 * eV
-m_to_fm = 1.0 / fm_to_m
-J_to_MeV = 1.0 / MeV_to_J
-
-# number density
-fm_inv3_to_SI = 1.0 / fm_to_m**3
+# convension factor from conventional unit to geometric unit
 number_density_to_geometric = 1
-fm_inv3_to_geometric = fm_inv3_to_SI * number_density_to_geometric
+pressure_to_geometric = G / c**4
+energy_density_to_geometric = pressure_to_geometric
+mass_to_geometric = G / c**2
 
-SI_to_fm_inv3 = 1.0 / fm_inv3_to_SI
-geometric_to_fm_inv3 = 1.0 / fm_inv3_to_geometric
-
-# pressure and energy density
-MeV_fm_inv3_to_SI = MeV_to_J * fm_inv3_to_SI
-SI_to_MeV_fm_inv3 = 1.0 / MeV_fm_inv3_to_SI
-pressure_SI_to_geometric = G / c**4
-MeV_fm_inv3_to_geometric = MeV_fm_inv3_to_SI * pressure_SI_to_geometric
-dyn_cm2_to_MeV_fm_inv3 = 1e-1 * J_to_MeV / m_to_fm**3
-g_cm_inv3_to_MeV_fm_inv3 = 1e3 * c**2 * J_to_MeV / m_to_fm**3
-
-geometric_to_SI = 1.0 / pressure_SI_to_geometric
-SI_to_MeV_fm_inv3 = 1.0 / MeV_fm_inv3_to_SI
-geometric_to_MeV_fm_inv3 = 1.0 / MeV_fm_inv3_to_geometric
-
+# specific values
+soloar_mass_in_length = Msun * G / c / c 
 
 #########################
 ### UTILITY FUNCTIONS ###

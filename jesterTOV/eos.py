@@ -2,7 +2,9 @@ import os
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import factorial
-from jaxtyping import Array, Float, Int
+from beartype import beartype as typechecker
+from jaxtyping import Array, Float, Int, jaxtyped
+from unxt import Quantity
 
 from . import utils, tov
 
@@ -47,9 +49,10 @@ class Interpolate_EOS_model(object):
         pass
     
     def interpolate_eos(self,
-                        n: Float[Array, "n_points"],
-                        p: Float[Array, "n_points"],
-                        e: Float[Array, "n_points"]):
+                        n: Float[Quantity, "n_points"],
+                        p: Float[Quantity, "n_points"],
+                        e: Float[Quantity, "n_points"]
+                        ):
         """
         Given n, p and e, interpolate to obtain necessary auxiliary quantities. 
 
@@ -60,9 +63,9 @@ class Interpolate_EOS_model(object):
         """
         
         # Save the provided data as attributes, make conversions
-        ns = jnp.array(n * utils.fm_inv3_to_geometric)
-        ps = jnp.array(p * utils.MeV_fm_inv3_to_geometric)
-        es = jnp.array(e * utils.MeV_fm_inv3_to_geometric)
+        ns = jnp.array(n.to('fm-3') * utils.number_density_to_geometric)
+        ps = jnp.array(p.to('MeV fm-3') * utils.pressure_to_geometric)
+        es = jnp.array(e.to('MeV fm-3') * utils.energy_density_to_geometric)
         
         hs = utils.cumtrapz(ps / (es + ps), jnp.log(ps)) # enthalpy
         # TODO: might be better to use jnp.gradient?
@@ -257,8 +260,8 @@ class MetaModel_EOS_model(Interpolate_EOS_model):
         cs2_connection = jnp.clip(cs2_connection, 1e-5, 1.0)
         
         # Concatenate the arrays
-        n = jnp.concatenate([self.ns_crust, self.n_connection, self.n_metamodel])
-        cs2 = jnp.concatenate([self.cs2_crust, cs2_connection, cs2_metamodel])
+        n = Quantity(jnp.concatenate([self.ns_crust, self.n_connection, self.n_metamodel]), 'fm-3')
+        cs2 = Quantity(jnp.concatenate([self.cs2_crust, cs2_connection, cs2_metamodel]), '')
         
         # Compute pressure and energy from chemical potential and initialize the parent class with it
         log_mu = utils.cumtrapz(cs2, jnp.log(n)) + jnp.log(self.mu_lowest)
@@ -491,7 +494,7 @@ class MetaModel_with_CSE_EOS_model(Interpolate_EOS_model):
     """
     def __init__(
         self,
-        nsat: Float =  0.16,
+        nsat: Float = Quantity(0.16, 'fm-3'),
         nmin_nsat: Float = 0.1,
         nmax_nsat: Float = 12,
         ndat_metamodel: Int = 100,
