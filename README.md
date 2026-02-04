@@ -118,7 +118,7 @@ If you use `jester` in your work, please cite our paper!
 }
 ```
 
-If you use the `ptov.py` module, to enabble pressure anisotropy, please cite the following paper:
+If you use the `ptov.py` module, to enable pressure anisotropy, please cite the following paper:
 ```
 @article{Pang:2025fes,
     author = "Pang, Peter T. H. and Brown, Stephanie M. and Wouters, Thibeau and Van Den Broeck, Chris",
