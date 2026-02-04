@@ -17,20 +17,19 @@ import jax.numpy as jnp
 from diffrax import diffeqsolve, ODETerm, Dopri5, SaveAt, PIDController
 
 
-def sigma_func(p, e, m, r, lambda_BL, lambda_DY, lambda_HB, gamma, alpha, beta):
+def sigma_func(p, e, m, r, lambda_BL, lambda_DY, lambda_HB):
     r"""
-    Compute the non-GR correction term sigma for modified TOV equations.
+    Compute the anisotropic correction term sigma for modified TOV equations.
 
     This function implements various phenomenological modifications to
     General Relativity that appear as additional terms in the TOV equations.
     The corrections are parameterized by several coupling constants.
 
     The sigma function includes:
-
-    - **Brans-Dicke-like**: :math:`\sigma_{\mathrm{BL}} = -\frac{\lambda_{\mathrm{BL}} r^2}{3}(\varepsilon + 3p)(\varepsilon + p)A`
-    - **Dynamical Chern-Simons**: :math:`\sigma_{\mathrm{DY}} = \lambda_{\mathrm{DY}} \frac{2m}{r} p`
-    - **Horava-like**: :math:`\sigma_{\mathrm{HB}} = -(\frac{1}{\lambda_{\mathrm{HB}}} - 1) \frac{r}{2} \frac{dp}{dr}`
-    - **Post-Newtonian**: :math:`\sigma_{\mathrm{PN}} = \gamma \frac{2m}{r} p \tanh(\alpha(\frac{m}{r} - \beta))`
+    following the convention in DOI: 10.1140/epjc/s10052-020-8361-4
+    - **Bowers-and-Liang**: `\sigma_{\mathrm{BL}} = -\frac{\lambda_{\mathrm{BL}}\epsilon^2 r^2}{3}\left(1 + \frac{3p}{\epsilon}\right)\frac{\left(1 + \frac{p}{\epsilon}\right)}{\left(1 - \frac{2M}{r}\right)}`
+    - **Horvat et al.**: :math:`\sigma_{\mathrm{DY}} = \lambda_{\mathrm{DY}} \frac{2m}{r} p`
+    - **Cosenza et al.**: :math:`\sigma_{\mathrm{HB}} = -(\frac{1}{\lambda_{\mathrm{HB}}} - 1) \frac{r}{2} \frac{dp}{dr}`
 
     Parameters
     ----------
@@ -45,15 +44,9 @@ def sigma_func(p, e, m, r, lambda_BL, lambda_DY, lambda_HB, gamma, alpha, beta):
     lambda_BL : float
         Bowers-Liang coupling parameter
     lambda_DY : float
-        Doneva-Yazadjiev coupling parameter
+        Horvat et al. coupling parameter
     lambda_HB : float
-        Herrera-Barreto coupling parameter
-    gamma : float
-        Post-Newtonian amplitude parameter
-    alpha : float
-        Post-Newtonian steepness parameter
-    beta : float
-        Post-Newtonian transition point parameter
+        Cosenza et al. coupling parameter
 
     Returns
     -------
@@ -64,13 +57,11 @@ def sigma_func(p, e, m, r, lambda_BL, lambda_DY, lambda_HB, gamma, alpha, beta):
     A = 1.0 / (1.0 - 2.0 * m / r)
     dpdr = -(e + p) * (m + 4.0 * jnp.pi * r * r * r * p) / r / r * A
     sigma = 0.0
-    # models reviewed in https://doi.org/10.1140/epjc/s10052-020-8361-4
+    # models reviewed in DOI: 10.1140/epjc/s10052-020-8361-4
     # in Eq. 12, the power of epsilon should be 2
     sigma += -lambda_BL * r * r / 3.0 * (e + 3.0 * p) * (e + p) * A
     sigma += lambda_DY * 2.0 * m / r * p
     sigma += -(1.0 / lambda_HB - 1.0) * r / 2.0 * dpdr
-    # post-Newtonian modification
-    sigma += gamma * 2.0 * m / r * p * jnp.tanh(alpha * (m / r - beta))
     return sigma
 
 
@@ -95,9 +86,6 @@ def tov_ode(h, y, eos):
         eos["lambda_BL"],
         eos["lambda_DY"],
         eos["lambda_HB"],
-        eos["gamma"],
-        eos["alpha"],
-        eos["beta"],
     )
     dsigmadp_fn = jax.grad(sigma_func, argnums=0)  # Gradient w.r.t. p
     dsigmade_fn = jax.grad(sigma_func, argnums=1)  # Gradient w.r.t. p
@@ -109,9 +97,6 @@ def tov_ode(h, y, eos):
         eos["lambda_BL"],
         eos["lambda_DY"],
         eos["lambda_HB"],
-        eos["gamma"],
-        eos["alpha"],
-        eos["beta"],
     )
     dsigmadp += dedp * dsigmade_fn(
         p,
@@ -121,15 +106,12 @@ def tov_ode(h, y, eos):
         eos["lambda_BL"],
         eos["lambda_DY"],
         eos["lambda_HB"],
-        eos["gamma"],
-        eos["alpha"],
-        eos["beta"],
     )
 
     A = 1.0 / (1.0 - 2.0 * m / r)
     # terms for radius and mass
     dpdr = -(e + p) * (m + 4.0 * jnp.pi * r * r * r * p) / r / r * A
-    dpdr += -2.0 * sigma / r  # adding non-GR contribution
+    dpdr += -2.0 * sigma / r  # adding anisotropic contribution
     # terms for tidal deformability
     C1 = 2.0 / r + A * (2.0 * m / (r * r) + 4.0 * jnp.pi * r * (p - e))
     C0 = A * (
@@ -194,12 +176,10 @@ def tov_solver(eos, pc):
     ----------
     eos : dict
         Extended EOS interpolation data containing:
-
         - **p**: Pressure array [geometric units]
         - **h**: Enthalpy array [geometric units]
         - **e**: Energy density array [geometric units]
         - **dloge_dlogp**: Logarithmic derivative array
-        - **alpha, beta, gamma**: Post-Newtonian parameters
         - **lambda_BL, lambda_DY, lambda_HB**: Theory modification parameters
     pc : float
         Central pressure [geometric units]

@@ -13,12 +13,9 @@ def sample_ptov_eos_dict(sample_eos_dict):
     # Add modified gravity parameters
     ptov_eos.update(
         {
-            "lambda_BL": 0.1,  # Brans-Dicke like parameter
-            "lambda_DY": 0.05,  # Dynamical Chern-Simons parameter
-            "lambda_HB": 1.2,  # Horndeski parameter
-            "gamma": 0.02,  # Post-Newtonian parameter
-            "alpha": 10.0,  # Tanh transition sharpness
-            "beta": 0.3,  # Transition compactness
+            "lambda_BL": 0.1,  # Bowers-and-Liang parameter
+            "lambda_DY": 0.05,  # Horvat et al. coupling parameter
+            "lambda_HB": 1.2,  # Cosenza et al.
         }
     )
 
@@ -40,13 +37,8 @@ class TestSigmaFunction:
         lambda_BL = 0.1
         lambda_DY = 0.05
         lambda_HB = 1.2
-        gamma = 0.02
-        alpha = 10.0
-        beta = 0.3
 
-        sigma = ptov.sigma_func(
-            p, e, m, r, lambda_BL, lambda_DY, lambda_HB, gamma, alpha, beta
-        )
+        sigma = ptov.sigma_func(p, e, m, r, lambda_BL, lambda_DY, lambda_HB)
 
         # Sigma should be finite
         assert jnp.isfinite(sigma)
@@ -62,13 +54,8 @@ class TestSigmaFunction:
         lambda_BL = 0.0
         lambda_DY = 0.0
         lambda_HB = 1.0  # GR value
-        gamma = 0.0
-        alpha = 10.0
-        beta = 0.3
 
-        sigma = ptov.sigma_func(
-            p, e, m, r, lambda_BL, lambda_DY, lambda_HB, gamma, alpha, beta
-        )
+        sigma = ptov.sigma_func(p, e, m, r, lambda_BL, lambda_DY, lambda_HB)
 
         # Should be very close to zero in GR limit
         assert abs(sigma) < 1e-10
@@ -78,16 +65,16 @@ class TestSigmaFunction:
         p, e, m, r = 3.71e-11, 4.13e-27, 2.07e3, 1.20e4
 
         # Test lambda_BL dependence
-        sigma1 = ptov.sigma_func(p, e, m, r, 0.0, 0.0, 1.0, 0.0, 10.0, 0.3)
-        sigma2 = ptov.sigma_func(p, e, m, r, 0.1, 0.0, 1.0, 0.0, 10.0, 0.3)
+        sigma1 = ptov.sigma_func(p, e, m, r, 0.0, 0.0, 1.0)
+        sigma2 = ptov.sigma_func(p, e, m, r, 0.1, 0.0, 1.0)
         assert sigma1 != sigma2  # Should be different
 
         # Test lambda_DY dependence
-        sigma3 = ptov.sigma_func(p, e, m, r, 0.0, 0.05, 1.0, 0.0, 10.0, 0.3)
+        sigma3 = ptov.sigma_func(p, e, m, r, 0.0, 0.05, 1.0)
         assert sigma1 != sigma3
 
         # Test lambda_HB dependence
-        sigma4 = ptov.sigma_func(p, e, m, r, 0.0, 0.0, 1.1, 0.0, 10.0, 0.3)
+        sigma4 = ptov.sigma_func(p, e, m, r, 0.0, 0.0, 1.1)
         assert sigma1 != sigma4
 
     def test_sigma_func_physical_values(self):
@@ -96,10 +83,10 @@ class TestSigmaFunction:
 
         # Test various parameter combinations
         test_params = [
-            (0.1, 0.0, 1.0, 0.0, 10.0, 0.3),
-            (0.0, 0.1, 1.0, 0.0, 10.0, 0.3),
-            (0.0, 0.0, 1.1, 0.0, 10.0, 0.3),
-            (0.0, 0.0, 1.0, 0.1, 10.0, 0.3),
+            (0.1, 0.0, 1.0),
+            (0.0, 0.1, 1.0),
+            (0.0, 0.0, 1.1),
+            (0.0, 0.0, 1.0),
         ]
 
         for params in test_params:
@@ -141,9 +128,6 @@ class TestPostTOVODE:
                 "lambda_BL": 0.0,
                 "lambda_DY": 0.0,
                 "lambda_HB": 1.0,  # GR value
-                "gamma": 0.0,
-                "alpha": 10.0,
-                "beta": 0.3,
             }
         )
         dydt_ptov_gr = ptov.tov_ode(h, y, gr_ptov_eos)
@@ -162,8 +146,8 @@ class TestPostTOVODE:
         m = 2.07e3
         r = 1.20e4
 
-        sigma_gr = ptov.sigma_func(p, e, m, r, 0.0, 0.0, 1.0, 0.0, 10.0, 0.3)
-        sigma_mg = ptov.sigma_func(p, e, m, r, 0.1, 0.05, 1.2, 0.02, 10.0, 0.3)
+        sigma_gr = ptov.sigma_func(p, e, m, r, 0.0, 0.0, 1.0)
+        sigma_mg = ptov.sigma_func(p, e, m, r, 0.1, 0.05, 1.2)
 
         assert abs(sigma_gr) < 1e-14  # Should be essentially zero in GR
         assert abs(sigma_mg) > 1e-14  # Should be non-zero with MG parameters
@@ -228,34 +212,22 @@ class TestPostTOVSolver:
                 "lambda_BL": 0.0,
                 "lambda_DY": 0.0,
                 "lambda_HB": 1.0,
-                "gamma": 0.0,
-                "alpha": 10.0,
-                "beta": 0.3,
             },  # GR case
             {
                 "lambda_BL": 0.1,
                 "lambda_DY": 0.0,
                 "lambda_HB": 1.0,
-                "gamma": 0.0,
-                "alpha": 10.0,
-                "beta": 0.3,
-            },  # Brans-Dicke
+            },  # Bowers-and-Liang
             {
                 "lambda_BL": 0.0,
                 "lambda_DY": 0.05,
                 "lambda_HB": 1.0,
-                "gamma": 0.0,
-                "alpha": 10.0,
-                "beta": 0.3,
-            },  # dCS
+            },  # Horvat et al.
             {
                 "lambda_BL": 0.0,
                 "lambda_DY": 0.0,
                 "lambda_HB": 1.1,
-                "gamma": 0.0,
-                "alpha": 10.0,
-                "beta": 0.3,
-            },  # Horndeski
+            },  # Cosenza et al.
         ]
 
         results = []
@@ -303,9 +275,6 @@ class TestPostTOVSolver:
                 "lambda_BL": 0.0,
                 "lambda_DY": 0.0,
                 "lambda_HB": 1.0,
-                "gamma": 0.0,
-                "alpha": 10.0,
-                "beta": 0.3,
             }
         )
 
@@ -376,9 +345,6 @@ class TestPostTOVPhysicalConsistency:
                 "lambda_BL": 0.0,
                 "lambda_DY": 0.0,
                 "lambda_HB": 1.0,
-                "gamma": 0.0,
-                "alpha": 10.0,
-                "beta": 0.3,
             }
         )
 
@@ -389,9 +355,6 @@ class TestPostTOVPhysicalConsistency:
                 "lambda_BL": 0.2,
                 "lambda_DY": 0.1,
                 "lambda_HB": 1.1,
-                "gamma": 0.05,
-                "alpha": 10.0,
-                "beta": 0.3,
             }
         )
 
@@ -416,11 +379,9 @@ class TestPostTOVPhysicalConsistency:
 def test_sigma_func_parameter_sweep(lambda_BL, lambda_DY):
     """Test sigma function across parameter space."""
     p, e, m, r = 3.71e-11, 4.13e-27, 2.07e3, 1.20e4
-    lambda_HB, gamma, alpha, beta = 1.0, 0.0, 10.0, 0.3
+    lambda_HB = 1.0
 
-    sigma = ptov.sigma_func(
-        p, e, m, r, lambda_BL, lambda_DY, lambda_HB, gamma, alpha, beta
-    )
+    sigma = ptov.sigma_func(p, e, m, r, lambda_BL, lambda_DY, lambda_HB)
 
     assert jnp.isfinite(sigma)
     assert abs(sigma) < 1e-8  # Should be reasonable in geometric units
@@ -432,7 +393,6 @@ def test_sigma_func_parameter_sweep(lambda_BL, lambda_DY):
         ("lambda_BL", 0.1),
         ("lambda_DY", 0.05),
         ("lambda_HB", 1.1),
-        ("gamma", 0.02),
     ],
 )
 def test_ptov_solver_individual_mg_params(sample_eos_dict, mg_param, value):
@@ -446,9 +406,6 @@ def test_ptov_solver_individual_mg_params(sample_eos_dict, mg_param, value):
             "lambda_BL": 0.0,
             "lambda_DY": 0.0,
             "lambda_HB": 1.0,
-            "gamma": 0.0,
-            "alpha": 10.0,
-            "beta": 0.3,
         }
     )
     eos_dict[mg_param] = value
