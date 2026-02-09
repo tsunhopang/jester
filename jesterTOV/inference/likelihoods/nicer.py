@@ -4,12 +4,11 @@ NICER X-ray timing likelihood implementations
 
 import jax
 import jax.numpy as jnp
-import numpy as np
-from jax.scipy.stats import gaussian_kde
 from jaxtyping import Array, Float
 from jax.scipy.special import logsumexp
 
 from jesterTOV.inference.base.likelihood import LikelihoodBase
+from jesterTOV.inference.flows.flow import Flow
 from jesterTOV.logging_config import get_logger
 
 logger = get_logger("jester")
@@ -71,56 +70,61 @@ class NICERLikelihood(LikelihoodBase):
     N_masses_batch_size: int
     amsterdam_masses: Float[Array, " n_amsterdam"]
     maryland_masses: Float[Array, " n_maryland"]
-    amsterdam_posterior: gaussian_kde
-    maryland_posterior: gaussian_kde
+    seed: int
+    amsterdam_flow: Flow
+    maryland_flow: Flow
+    amsterdam_fixed_mass_samples: Float[Array, "n_samples 1"]
+    maryland_fixed_mass_samples: Float[Array, "n_samples 1"]
 
     def __init__(
         self,
         psr_name: str,
-        amsterdam_samples_file: str,
-        maryland_samples_file: str,
+        amsterdam_model_dir: str,
+        maryland_model_dir: str,
         penalty_value: float = -99999.0,
         N_masses_evaluation: int = 20,
         N_masses_batch_size: int = 10,
+        seed: int = 42,
     ) -> None:
         super().__init__()
         self.psr_name = psr_name
         self.penalty_value = penalty_value
         self.N_masses_evaluation = N_masses_evaluation
         self.N_masses_batch_size = N_masses_batch_size
+        self.seed = seed
 
-        # Load samples from npz files
+        # Load Flow model for this PSR
         logger.info(
-            f"Loading Amsterdam samples for {psr_name} from {amsterdam_samples_file}"
+            f"Loading Amsterdam NF model for {psr_name} from {amsterdam_model_dir}"
         )
-        amsterdam_data = np.load(amsterdam_samples_file, allow_pickle=True)
+        self.amsterdam_flow = Flow.from_directory(amsterdam_model_dir)
+        logger.info(f"Loaded Amsterdam NF model for {psr_name}")
 
         logger.info(
-            f"Loading Maryland samples for {psr_name} from {maryland_samples_file}"
+            f"Loading Maryland NF model for {psr_name} from {maryland_model_dir}"
         )
-        maryland_data = np.load(maryland_samples_file, allow_pickle=True)
+        self.maryland_flow = Flow.from_directory(maryland_model_dir)
+        logger.info(f"Loaded Maryland NF model for {psr_name}")
 
-        # Extract mass and radius samples
-        # File format: mass (Msun), radius (km)
-        amsterdam_mass = amsterdam_data["mass"]
-        amsterdam_radius = amsterdam_data["radius"]
-        maryland_mass = maryland_data["mass"]
-        maryland_radius = maryland_data["radius"]
-
-        # Store mass samples as JAX arrays for random sampling
-        self.amsterdam_masses = jnp.array(amsterdam_mass)
-        self.maryland_masses = jnp.array(maryland_mass)
-
-        # Stack into [mass, radius] arrays for KDE
-        # Convert to JAX arrays for JAX KDE
-        amsterdam_mr = jnp.vstack([amsterdam_mass, amsterdam_radius])
-        maryland_mr = jnp.vstack([maryland_mass, maryland_radius])
-
-        # Construct KDEs using JAX implementation
-        logger.info(f"Constructing JAX KDEs for {psr_name}")
-        self.amsterdam_posterior = gaussian_kde(amsterdam_mr)
-        self.maryland_posterior = gaussian_kde(maryland_mr)
-        logger.info(f"Loaded JAX KDEs for {psr_name}")
+        # Pre-sample masses ONCE at initialization
+        logger.info(
+            f"Pre-sampling {N_masses_evaluation} masses with seed={seed} for {psr_name}"
+        )
+        key = jax.random.key(seed)
+        key_amsterdam, key_maryland = jax.random.split(key)
+        amsterdam_samples = self.amsterdam_flow.sample(key, (N_masses_evaluation,))
+        maryland_samples = self.maryland_flow.sample(key, (N_masses_evaluation,))
+        # Extract only masses, discard radius values from flow
+        self.amsterdam_fixed_mass_samples = samples[:, :1]  # Shape: [N, 1]
+        self.maryland_fixed_mass_samples = samples[:, :1]  # Shape: [N, 1]
+        logger.info(
+            f"Pre-sampled Amsterdam mass range: mass=[{jnp.min(self.amsterdam_fixed_mass_samples[:, 0]):.3f}, "
+            f"{jnp.max(self.amsterdam_fixed_mass_samples[:, 0]):.3f}] Msun"
+        )
+        logger.info(
+            f"Pre-sampled Maryland mass range: mass=[{jnp.min(self.maryland_fixed_mass_samples[:, 0]):.3f}, "
+            f"{jnp.max(self.maryland_fixed_mass_samples[:, 0]):.3f}] Msun"
+        )
 
     def evaluate(self, params: dict[str, Float | Array]) -> Float:
         """
@@ -140,43 +144,13 @@ class NICERLikelihood(LikelihoodBase):
             Log likelihood value for this NICER observation
         """
         # Extract parameters
-        sampled_key = params["_random_key"].astype("int64")
-        key = jax.random.key(sampled_key)
         masses_EOS: Float[Array, " n_points"] = params["masses_EOS"]
         radii_EOS: Float[Array, " n_points"] = params["radii_EOS"]
         mtov: Float = jnp.max(masses_EOS)
 
-        # Split key for Amsterdam and Maryland sampling
-        key_amsterdam, key_maryland = jax.random.split(key)
-
-        # Sample masses from the NICER posterior samples
-        # Each group gets half of N_masses_evaluation samples
-        n_samples_per_group: int = self.N_masses_evaluation // 2
-
-        # Sample indices and get mass samples
-        amsterdam_indices = jax.random.choice(
-            key_amsterdam,
-            len(self.amsterdam_masses),
-            shape=(n_samples_per_group,),
-            replace=True,
-        )
-        maryland_indices = jax.random.choice(
-            key_maryland,
-            len(self.maryland_masses),
-            shape=(n_samples_per_group,),
-            replace=True,
-        )
-
-        amsterdam_mass_samples: Float[Array, " n_amsterdam_samples"] = (
-            self.amsterdam_masses[amsterdam_indices]
-        )
-        maryland_mass_samples: Float[Array, " n_maryland_samples"] = (
-            self.maryland_masses[maryland_indices]
-        )
-
-        def process_sample_amsterdam(mass: Float) -> Float:
+        def process_sample_amsterdam(mass: Float[Array, " 1"]) -> Float:
             """
-            Process a single Amsterdam mass sample
+            Process a single mass sample
 
             Parameters
             ----------
@@ -200,7 +174,7 @@ class NICERLikelihood(LikelihoodBase):
 
             return logpdf + penalty
 
-        def process_sample_maryland(mass: Float) -> Float:
+        def process_sample_maryland(mass: Float[Array, " 1"]) -> Float:
             """
             Process a single Maryland mass sample
 
