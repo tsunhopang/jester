@@ -114,20 +114,15 @@ class Flow:
         # If standardization is disabled, use trivial bounds (min=0, range=1)
         # that make standardization operations identity transformations
         if self.standardize:
-            self.data_min = jnp.array(metadata["data_bounds_min"])
-            self.data_max = jnp.array(metadata["data_bounds_max"])
+            self.data_mean = jnp.array(metadata["data_mean"])
+            self.data_std = jnp.array(metadata["data_std"])
         else:
             # Trivial bounds: min=0, max=1 → operations become identity
             # Assume 4D flow (m1, m2, lambda1, lambda2)
             # TODO: this might have to be changed in the future, but keep for now
             n_features = 4
-            self.data_min = jnp.zeros(n_features)
-            self.data_max = jnp.ones(n_features)
-
-        # Precompute data range (max - min) to avoid repeated computation
-        self.data_range = self.data_max - self.data_min
-        # Avoid division by zero (though this shouldn't happen with our bounds)
-        self.data_range = jnp.where(self.data_range == 0, 1.0, self.data_range)
+            self.data_mean = jnp.zeros(n_features)
+            self.data_std = jnp.ones(n_features)
 
     @classmethod
     def from_directory(cls, output_dir: str) -> "Flow":
@@ -182,7 +177,7 @@ class Flow:
 
     def standardize_input(self, data: Array) -> Array:
         """
-        Standardize input data to [0, 1] domain using training bounds.
+        Standardize input data to zero-mean and unit-variance using training bounds.
 
         If standardization was disabled, this is identity (no-op).
 
@@ -190,15 +185,13 @@ class Flow:
             data: Input data in original scale (JAX array)
 
         Returns:
-            Data scaled to [0, 1] (or unchanged if standardization not used)
+            Data scaled to mean=0 and std=1 (or unchanged if standardization not used)
 
         Example:
             >>> original_data = jnp.array([[1.4, 1.3, 100, 200]])
             >>> standardized = flow.standardize_input(original_data)
         """
-        # Standardization: original scale -> [0,1]
-        # If standardization was disabled, this is identity (min=0, range=1)
-        return (data - self.data_min) / self.data_range
+        return (data - self.data_mean) / self.data_std
 
     def destandardize_output(self, data: Array) -> Array:
         """
@@ -207,7 +200,7 @@ class Flow:
         If standardization was disabled, this is identity (no-op).
 
         Args:
-            data: Data in [0, 1] domain (JAX array)
+            data: Data in with zero-mean and unit-variance (JAX array)
 
         Returns:
             Data in original scale (or unchanged if standardization not used)
@@ -216,9 +209,7 @@ class Flow:
             >>> standardized_data = jnp.array([[0.5, 0.5, 0.5, 0.5]])
             >>> original = flow.destandardize_output(standardized_data)
         """
-        # Inverse standardization: [0,1] -> original scale
-        # If standardization was disabled, this is identity (min=0, range=1)
-        return data * self.data_range + self.data_min
+        return data * self.data_std + self.data_mean
 
     def log_prob(self, x: Array) -> Array:
         """
@@ -285,6 +276,7 @@ def create_transformer(
 
 def create_flow(
     key: Array,
+    dim: int,
     flow_type: str = "masked_autoregressive_flow",
     nn_depth: int = 5,
     nn_block_dim: int = 8,
@@ -318,7 +310,7 @@ def create_flow(
     Returns:
         Untrained flowjax flow model
     """
-    base_dist = Normal(jnp.zeros(4))  # 4D: m1, m2, lambda1, lambda2
+    base_dist = Normal(jnp.zeros(dim))
 
     if flow_type == "block_neural_autoregressive_flow":
         flow = block_neural_autoregressive_flow(
@@ -391,6 +383,7 @@ def load_model(output_dir: str) -> Tuple[Any, Dict[str, Any]]:
     key = jax.random.key(flow_kwargs["seed"])
     flow = create_flow(
         key=key,
+        dim=flow_kwargs.get("dim", 4),  # for backward compatibility
         flow_type=flow_kwargs["flow_type"],
         nn_depth=flow_kwargs["nn_depth"],
         nn_block_dim=flow_kwargs["nn_block_dim"],
