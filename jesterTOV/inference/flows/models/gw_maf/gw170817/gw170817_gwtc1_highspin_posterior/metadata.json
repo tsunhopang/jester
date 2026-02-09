@@ -1,0 +1,30 @@
+{
+  "n_samples_total": 4041,
+  "n_samples_used": 4041,
+  "filepath": "./jesterTOV/inference/data//gw170817/gw170817_gwtc1_highspin_posterior.npz",
+  "parameter_names": [
+    "mass_1_source",
+    "mass_2_source",
+    "lambda_1",
+    "lambda_2"
+  ],
+  "n_parameters": 4,
+  "flow_type": "masked_autoregressive_flow",
+  "num_epochs": 199,
+  "learning_rate": 0.001,
+  "max_patience": 50,
+  "val_prop": 0.2,
+  "standardize": true,
+  "data_bounds_mean": [
+    1.6174209920463798,
+    1.1690921271803427,
+    284.6374164139447,
+    708.0786255071305
+  ],
+  "data_bounds_std": [
+    0.1738893587931653,
+    0.10972644391112399,
+    295.5898290990636,
+    661.5931307376384
+  ]
+}

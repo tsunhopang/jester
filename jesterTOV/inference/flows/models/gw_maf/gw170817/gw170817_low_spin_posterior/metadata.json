@@ -1,0 +1,30 @@
+{
+  "n_samples_total": 3952,
+  "n_samples_used": 3952,
+  "filepath": "./jesterTOV/inference/data//gw170817/gw170817_low_spin_posterior.npz",
+  "parameter_names": [
+    "mass_1_source",
+    "mass_2_source",
+    "lambda_1",
+    "lambda_2"
+  ],
+  "n_parameters": 4,
+  "flow_type": "masked_autoregressive_flow",
+  "num_epochs": 142,
+  "learning_rate": 0.001,
+  "max_patience": 50,
+  "val_prop": 0.2,
+  "standardize": true,
+  "data_bounds_mean": [
+    1.4879439153514054,
+    1.2566301985678339,
+    341.0350192750236,
+    553.2998339694889
+  ],
+  "data_bounds_std": [
+    0.08105482156089303,
+    0.064579641017494,
+    310.60492408849797,
+    466.01315984749743
+  ]
+}

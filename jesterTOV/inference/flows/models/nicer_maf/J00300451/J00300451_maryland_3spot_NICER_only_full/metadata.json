@@ -1,0 +1,24 @@
+{
+  "n_samples_total": 100000,
+  "n_samples_used": 50000,
+  "filepath": "./jesterTOV/inference/data/NICER/J00300451_maryland_3spot_NICER_only_full.npz",
+  "parameter_names": [
+    "mass",
+    "radius"
+  ],
+  "n_parameters": 2,
+  "flow_type": "masked_autoregressive_flow",
+  "num_epochs": 206,
+  "learning_rate": 0.001,
+  "max_patience": 50,
+  "val_prop": 0.2,
+  "standardize": true,
+  "data_bounds_mean": [
+    1.443360140116129,
+    13.094551887686858
+  ],
+  "data_bounds_std": [
+    0.1485385671807697,
+    1.160796824940738
+  ]
+}
