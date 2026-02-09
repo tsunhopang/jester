@@ -75,7 +75,7 @@ class Flow:
         metadata: Training metadata dictionary
         flow_kwargs: Flow architecture kwargs
         standardize: Whether standardization was used during training
-        data_bounds: Min/max bounds for each feature (if standardization was used)
+        data_mean_std: Means and stds for each feature (if standardization was used)
 
     Example:
         >>> # Load a trained flow
@@ -110,17 +110,14 @@ class Flow:
             "standardize"
         ]  # TODO: this is a bit redunant, only used below, simplify
 
-        # Always store bounds as JAX arrays
-        # If standardization is disabled, use trivial bounds (min=0, range=1)
+        # Always store mean and std as JAX arrays
+        # If standardization is disabled, use trivial values (mean=0, std=1)
         # that make standardization operations identity transformations
         if self.standardize:
             self.data_mean = jnp.array(metadata["data_mean"])
             self.data_std = jnp.array(metadata["data_std"])
         else:
-            # Trivial bounds: min=0, max=1 → operations become identity
-            # Assume 4D flow (m1, m2, lambda1, lambda2)
-            # TODO: this might have to be changed in the future, but keep for now
-            n_features = 4
+            # Trivial values: mean=0, std=1 → operations become identity
             self.data_mean = jnp.zeros(n_features)
             self.data_std = jnp.ones(n_features)
 
@@ -170,14 +167,14 @@ class Flow:
         samples = self.flow.sample(key, shape)
 
         # Inverse standardization: [0,1] -> original scale
-        # If standardization was disabled, this is identity (min=0, range=1)
-        samples = samples * self.data_range + self.data_min
+        # If standardization was disabled, this is identity (mean=0, std=1)
+        samples = samples * self.data_std + self.data_mean
 
         return samples
 
     def standardize_input(self, data: Array) -> Array:
         """
-        Standardize input data to zero-mean and unit-variance using training bounds.
+        Standardize input data to zero-mean and unit-variance using training data.
 
         If standardization was disabled, this is identity (no-op).
 
@@ -237,9 +234,9 @@ class Flow:
         log_p = self.flow.log_prob(x_std)
 
         # Account for Jacobian of inverse transformation
-        # For min-max scaling: log p(x) = log p(x_std) - sum(log(x_max - x_min))
-        # If standardization was disabled (range=1), log_det_jacobian = 0
-        log_det_jacobian = -jnp.sum(jnp.log(self.data_range))
+        # For min-max scaling: log p(x) = log p(x_std) - sum(log(data_std))
+        # If standardization was disabled (std=1), log_det_jacobian = 0
+        log_det_jacobian = -jnp.sum(jnp.log(self.data_std))
         log_p = log_p + log_det_jacobian
 
         return log_p
@@ -369,7 +366,7 @@ def load_model(output_dir: str) -> Tuple[Any, Dict[str, Any]]:
 
     Returns:
         flow: Loaded flow model
-        metadata: Training metadata (includes data_bounds if standardization was used)
+        metadata: Training metadata (includes data_mean_std if standardization was used)
 
     Example:
         >>> flow, metadata = load_model("./models/gw170817/")

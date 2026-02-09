@@ -468,8 +468,8 @@ def train_flow_from_config(
 
     # Add data bounds if standardization was used
     if config.standardize and data_bounds is not None:
-        flow_kwargs["data_bounds_mean"] = data_bounds["mean"].tolist()
-        flow_kwargs["data_bounds_std"] = data_bounds["std"].tolist()
+        flow_kwargs["data_mean"] = data_bounds["mean"].tolist()
+        flow_kwargs["data_std"] = data_bounds["std"].tolist()
 
     metadata = {
         **load_metadata,
@@ -484,8 +484,8 @@ def train_flow_from_config(
 
     # Add data bounds to metadata if standardization was used
     if config.standardize and data_bounds is not None:
-        metadata["data_bounds_mean"] = data_bounds["mean"].tolist()
-        metadata["data_bounds_std"] = data_bounds["std"].tolist()
+        metadata["data_mean"] = data_bounds["mean"].tolist()
+        metadata["data_std"] = data_bounds["std"].tolist()
 
     save_model(trained_flow, config.output_dir, flow_kwargs, metadata)
 
