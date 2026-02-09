@@ -1,0 +1,24 @@
+{
+  "n_samples_total": 100000,
+  "n_samples_used": 50000,
+  "filepath": "./jesterTOV/inference/data/NICER/J00300451_amsterdam_ST_U_NICER_only_Riley2019.npz",
+  "parameter_names": [
+    "mass",
+    "radius"
+  ],
+  "n_parameters": 2,
+  "flow_type": "masked_autoregressive_flow",
+  "num_epochs": 256,
+  "learning_rate": 0.001,
+  "max_patience": 50,
+  "val_prop": 0.2,
+  "standardize": true,
+  "data_bounds_mean": [
+    1.3079967799294772,
+    11.363565269103674
+  ],
+  "data_bounds_std": [
+    0.31468919880758417,
+    1.8939087117265339
+  ]
+}

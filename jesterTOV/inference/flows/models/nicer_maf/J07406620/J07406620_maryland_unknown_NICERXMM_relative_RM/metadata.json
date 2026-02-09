@@ -1,0 +1,24 @@
+{
+  "n_samples_total": 100000,
+  "n_samples_used": 50000,
+  "filepath": "./jesterTOV/inference/data/NICER/J07406620_maryland_unknown_NICERXMM_relative_RM.npz",
+  "parameter_names": [
+    "mass",
+    "radius"
+  ],
+  "n_parameters": 2,
+  "flow_type": "masked_autoregressive_flow",
+  "num_epochs": 108,
+  "learning_rate": 0.001,
+  "max_patience": 50,
+  "val_prop": 0.2,
+  "standardize": true,
+  "data_bounds_mean": [
+    2.063550011952593,
+    13.920661942262516
+  ],
+  "data_bounds_std": [
+    0.09111301573508304,
+    2.1039544571004947
+  ]
+}
