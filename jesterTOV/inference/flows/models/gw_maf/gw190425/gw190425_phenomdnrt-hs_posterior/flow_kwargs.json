@@ -1,0 +1,33 @@
+{
+  "dim": 4,
+  "flow_type": "masked_autoregressive_flow",
+  "nn_depth": 5,
+  "nn_block_dim": 8,
+  "nn_width": 50,
+  "flow_layers": 1,
+  "invert": true,
+  "cond_dim": null,
+  "seed": 42,
+  "standardize": true,
+  "transformer_type": "rational_quadratic_spline",
+  "transformer_knots": 10,
+  "transformer_interval": 5.0,
+  "parameter_names": [
+    "mass_1_source",
+    "mass_2_source",
+    "lambda_1",
+    "lambda_2"
+  ],
+  "data_bounds_mean": [
+    2.0243849818042094,
+    1.383791250772441,
+    622.0749600721974,
+    1992.407362438083
+  ],
+  "data_bounds_std": [
+    0.2998479927622381,
+    0.16954450166519794,
+    731.1747263613385,
+    2127.1008513130914
+  ]
+}

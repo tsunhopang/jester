@@ -1,0 +1,30 @@
+{
+  "n_samples_total": 46709,
+  "n_samples_used": 46709,
+  "filepath": "./jesterTOV/inference/data//gw190425/gw190425_phenompnrt-ls_posterior.npz",
+  "parameter_names": [
+    "mass_1_source",
+    "mass_2_source",
+    "lambda_1",
+    "lambda_2"
+  ],
+  "n_parameters": 4,
+  "flow_type": "masked_autoregressive_flow",
+  "num_epochs": 105,
+  "learning_rate": 0.001,
+  "max_patience": 50,
+  "val_prop": 0.2,
+  "standardize": true,
+  "data_bounds_mean": [
+    1.7580108069325395,
+    1.5545122885793192,
+    466.39971757457323,
+    669.7008392737225
+  ],
+  "data_bounds_std": [
+    0.08207345965735639,
+    0.06843443298724528,
+    520.98089395902,
+    752.7345334957078
+  ]
+}
