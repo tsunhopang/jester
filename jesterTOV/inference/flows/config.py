@@ -6,7 +6,7 @@ in train_flow.py.
 """
 
 from pathlib import Path
-from typing import Literal
+from typing import Literal, List
 
 import yaml
 from pydantic import BaseModel, field_validator
@@ -58,13 +58,13 @@ class FlowTrainingConfig(BaseModel):
     nn_width : int
         Width of neural network hidden layers (default: 50)
     standardize : bool
-        Standardize input data to [0,1] domain using min-max scaling (default: False)
+        Standardize input data to zero-mean and unit variance (default: True)
     transformer : Literal["affine", "rational_quadratic_spline"]
-        Transformer type for masked_autoregressive_flow and coupling_flow (default: affine)
+        Transformer type for masked_autoregressive_flow and coupling_flow (default: rational_quadratic_spline)
     transformer_knots : int
-        Number of knots for RationalQuadraticSpline transformer (default: 8)
+        Number of knots for RationalQuadraticSpline transformer (default: 10)
     transformer_interval : float
-        Interval for RationalQuadraticSpline transformer (default: 4.0)
+        Interval for RationalQuadraticSpline transformer (default: 5.0)
     val_prop : float
         Proportion of data to use for validation (default: 0.2)
     batch_size : int
@@ -92,10 +92,12 @@ class FlowTrainingConfig(BaseModel):
         "coupling_flow",
     ] = "masked_autoregressive_flow"
     nn_width: int = 50
-    standardize: bool = False
-    transformer: Literal["affine", "rational_quadratic_spline"] = "affine"
-    transformer_knots: int = 8
-    transformer_interval: float = 4.0
+    standardize: bool = True
+    transformer: Literal["affine", "rational_quadratic_spline"] = (
+        "rational_quadratic_spline"
+    )
+    transformer_knots: int = 10
+    transformer_interval: float = 5.0
     val_prop: float = 0.2
     batch_size: int = 128
 

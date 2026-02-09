@@ -117,25 +117,21 @@ def standardize_data(
     data: np.ndarray,
 ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
     """
-    Standardize data to [0, 1] domain using min-max scaling.
+    Standardize data to zero-mean and unit-variance.
 
     Args:
         data: Array of shape (n_samples, n_features)
 
     Returns:
-        standardized_data: Data scaled to [0, 1]
-        bounds: Dictionary with 'min' and 'max' arrays for each feature
+        standardized_data: Data scaled to zero-mean and unit-variance
+        bounds: Dictionary with 'mean' and 'std' arrays for each feature
     """
-    data_min = data.min(axis=0)
-    data_max = data.max(axis=0)
+    data_mean = data.mean(axis=0)
+    data_std = data.std(axis=0)
 
-    # Avoid division by zero (if a feature is constant)
-    data_range = data_max - data_min
-    data_range = np.where(data_range == 0, 1.0, data_range)
+    standardized_data = (data - data_mean) / data_std
 
-    standardized_data = (data - data_min) / data_range
-
-    bounds = {"min": data_min, "max": data_max}
+    bounds = {"mean": data_mean, "std": data_std}
 
     return standardized_data, bounds
 
@@ -147,18 +143,16 @@ def inverse_standardize_data(
     Inverse transform standardized data back to original scale.
 
     Args:
-        standardized_data: Data in [0, 1] domain
-        bounds: Dictionary with 'min' and 'max' arrays for each feature
+        standardized_data: Data scaled to zero-mean and unit-variance
+        bounds: Dictionary with 'mean' and 'std' arrays for each feature
 
     Returns:
         data: Data in original scale
     """
-    data_min = bounds["min"]
-    data_max = bounds["max"]
-    data_range = data_max - data_min
-    data_range = np.where(data_range == 0, 1.0, data_range)
+    data_mean = bounds["mean"]
+    data_std = bounds["std"]
 
-    data = standardized_data * data_range + data_min
+    data = standardized_data * data_std + data_mean
 
     return data
 
@@ -402,9 +396,9 @@ def train_flow_from_config(
         config.posterior_file, parameter_names, config.max_samples
     )
     print(f"Data shape: {data.shape}")
-    print("Original data ranges:")
+    print("Original data mean and std:")
     for i, name in enumerate(parameter_names):
-        print(f"  {name}: [{data[:, i].min():.3f}, {data[:, i].max():.3f}]")
+        print(f"  {name}: mean={data[:, i].mean():.3f}, std={data[:, i].std():.3f}")
 
     # Keep copy of original data for corner plot
     original_data = data.copy()
@@ -412,11 +406,11 @@ def train_flow_from_config(
     # Standardize data if requested
     data_bounds = None
     if config.standardize:
-        print("\nStandardizing data to [0, 1] domain...")
+        print("\nStandardizing data to zero-mean and unit-variance ...")
         data, data_bounds = standardize_data(data)
-        print("Standardized data ranges:")
+        print("Standardized data mean and std:")
         for i, name in enumerate(parameter_names):
-            print(f"  {name}: [{data[:, i].min():.3f}, {data[:, i].max():.3f}]")
+            print(f"  {name}: mean={data[:, i].mean():.3f}, std={data[:, i].std():.3f}")
         print("Data bounds saved for inverse transformation")
 
     # Create flow
@@ -424,6 +418,7 @@ def train_flow_from_config(
     flow_key, train_key, sample_key = jax.random.split(jax.random.key(config.seed), 3)
     flow = create_flow(
         key=flow_key,
+        dim=len(parameter_names),
         flow_type=config.flow_type,
         nn_depth=config.nn_depth,
         nn_block_dim=config.nn_block_dim,
@@ -455,6 +450,7 @@ def train_flow_from_config(
     # Save model
     print("\n[4/5] Saving model...")
     flow_kwargs = {
+        "dim": len(parameter_names),
         "flow_type": config.flow_type,
         "nn_depth": config.nn_depth,
         "nn_block_dim": config.nn_block_dim,
@@ -472,8 +468,8 @@ def train_flow_from_config(
 
     # Add data bounds if standardization was used
     if config.standardize and data_bounds is not None:
-        flow_kwargs["data_bounds_min"] = data_bounds["min"].tolist()
-        flow_kwargs["data_bounds_max"] = data_bounds["max"].tolist()
+        flow_kwargs["data_bounds_mean"] = data_bounds["mean"].tolist()
+        flow_kwargs["data_bounds_std"] = data_bounds["std"].tolist()
 
     metadata = {
         **load_metadata,
@@ -488,8 +484,8 @@ def train_flow_from_config(
 
     # Add data bounds to metadata if standardization was used
     if config.standardize and data_bounds is not None:
-        metadata["data_bounds_min"] = data_bounds["min"].tolist()
-        metadata["data_bounds_max"] = data_bounds["max"].tolist()
+        metadata["data_bounds_mean"] = data_bounds["mean"].tolist()
+        metadata["data_bounds_std"] = data_bounds["std"].tolist()
 
     save_model(trained_flow, config.output_dir, flow_kwargs, metadata)
 
