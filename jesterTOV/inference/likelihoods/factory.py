@@ -251,8 +251,8 @@ def create_combined_likelihood(
             for pulsar in pulsars:
                 nicer_likelihood = NICERLikelihood(
                     psr_name=pulsar["name"],
-                    amsterdam_samples_file=pulsar["amsterdam_samples_file"],
-                    maryland_samples_file=pulsar["maryland_samples_file"],
+                    amsterdam_model_dir=pulsar["amsterdam_model_dir"],
+                    maryland_model_dir=pulsar["maryland_model_dir"],
                     N_masses_evaluation=N_masses_evaluation,
                     N_masses_batch_size=N_masses_batch_size,
                 )
