@@ -146,7 +146,7 @@ class LikelihoodConfig(BaseModel):
 
         For NICER likelihoods:
             pulsars : list[dict]
-                List of pulsars with 'name', 'amsterdam_samples_file', and 'maryland_samples_file' keys
+                List of pulsars with 'name', 'amsterdam_model_dir', and 'maryland_model_dir' keys
             N_masses_evaluation : int
                 Number of mass grid points for marginalization (default: 100)
             N_masses_batch_size : int
@@ -290,7 +290,7 @@ class LikelihoodConfig(BaseModel):
             if "pulsars" not in v:
                 raise ValueError(
                     "NICER likelihood requires 'pulsars' parameter "
-                    "(list of dicts with 'name', 'amsterdam_samples_file', and 'maryland_samples_file')"
+                    "(list of dicts with 'name', 'amsterdam_model_dir', and 'maryland_model_dir')"
                 )
 
             pulsars = v["pulsars"]
@@ -301,18 +301,18 @@ class LikelihoodConfig(BaseModel):
             for i, pulsar in enumerate(pulsars):
                 if not isinstance(pulsar, dict):
                     raise ValueError(
-                        f"Pulsar {i} must be a dict with 'name', 'amsterdam_samples_file', "
-                        f"and 'maryland_samples_file' keys"
+                        f"Pulsar {i} must be a dict with 'name', 'amsterdam_model_dir', "
+                        f"and 'maryland_model_dir' keys"
                     )
                 if "name" not in pulsar:
                     raise ValueError(f"Pulsar {i} missing required 'name' field")
-                if "amsterdam_samples_file" not in pulsar:
+                if "amsterdam_model_dir" not in pulsar:
                     raise ValueError(
-                        f"Pulsar {i} missing required 'amsterdam_samples_file' field"
+                        f"Pulsar {i} missing required 'amsterdam_model_dir' field"
                     )
-                if "maryland_samples_file" not in pulsar:
+                if "maryland_model_dir" not in pulsar:
                     raise ValueError(
-                        f"Pulsar {i} missing required 'maryland_samples_file' field"
+                        f"Pulsar {i} missing required 'maryland_model_dir' field"
                     )
 
             # Set defaults for optional parameters
