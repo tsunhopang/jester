@@ -2,6 +2,7 @@
 
 import pytest
 import yaml
+import jax
 from pathlib import Path
 from pydantic import ValidationError
 
@@ -144,7 +145,6 @@ class TestLikelihoodConfig:
                 "pulsars": [
                     {"name": "J0348+0432", "mass_mean": 2.01, "mass_std": 0.04}
                 ],
-                "nb_masses": 100,
             },
         )
         assert config.type == "radio"
@@ -277,6 +277,18 @@ class TestInferenceConfig:
                 sampler={"n_chains": 4},
             )
 
+    def test_debug_nans_default_false(self, sample_config_dict):
+        """Test that debug_nans defaults to False."""
+        config = schema.InferenceConfig(**sample_config_dict)
+        assert config.debug_nans is False
+
+    def test_debug_nans_can_be_enabled(self, sample_config_dict):
+        """Test that debug_nans can be set to True."""
+        config_dict = sample_config_dict.copy()
+        config_dict["debug_nans"] = True
+        config = schema.InferenceConfig(**config_dict)
+        assert config.debug_nans is True
+
 
 class TestConfigParser:
     """Test configuration parser functionality."""
@@ -340,6 +352,73 @@ seed: 42
 
         with pytest.raises(ValueError, match="Error validating configuration"):
             parser.load_config(incomplete_config)
+
+
+class TestExtraFieldValidation:
+    """Test that config models reject extra/unknown fields."""
+
+    def test_transform_config_rejects_extra_fields(self):
+        """Test that TransformConfig rejects unknown fields."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            schema.TransformConfig(
+                type="metamodel",
+                nb_CSE=0,
+                wrong_entry=500,  # Should be rejected
+            )
+
+    def test_prior_config_rejects_extra_fields(self):
+        """Test that PriorConfig rejects unknown fields."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            schema.PriorConfig(
+                specification_file="test.prior",
+                invalid_param="value",  # Should be rejected
+            )
+
+    def test_likelihood_config_rejects_extra_fields(self):
+        """Test that LikelihoodConfig rejects unknown fields."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            schema.LikelihoodConfig(
+                type="zero",
+                enabled=True,
+                parameters={},
+                extra_field="should_fail",  # Should be rejected
+            )
+
+    def test_sampler_config_rejects_extra_fields(self):
+        """Test that FlowMCSamplerConfig rejects unknown fields."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            schema.FlowMCSamplerConfig(
+                type="flowmc",
+                n_chains=4,
+                n_loop_training=2,
+                n_loop_production=2,
+                invalid_option=True,  # Should be rejected
+            )
+
+    def test_postprocessing_config_rejects_extra_fields(self):
+        """Test that PostprocessingConfig rejects unknown fields."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            schema.PostprocessingConfig(
+                enabled=True,
+                make_cornerplot=True,
+                unknown_plot_type=True,  # Should be rejected
+            )
+
+    def test_inference_config_rejects_extra_fields(self, sample_config_dict):
+        """Test that InferenceConfig rejects unknown fields."""
+        config_dict = sample_config_dict.copy()
+        config_dict["random_invalid_field"] = "should_fail"
+
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            schema.InferenceConfig(**config_dict)
+
+    def test_nested_extra_fields_rejected(self, sample_config_dict):
+        """Test that extra fields in nested config sections are rejected."""
+        config_dict = sample_config_dict.copy()
+        config_dict["transform"]["wrong_entry"] = 500  # Should be rejected
+
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            schema.InferenceConfig(**config_dict)
 
 
 class TestConfigIntegration:
@@ -409,3 +488,46 @@ class TestConfigIntegration:
                 ]
             )
             pytest.fail(error_msg)
+
+    def test_debug_nans_config_integration(
+        self, temp_dir, sample_config_dict, sample_prior_file
+    ):
+        """Test that debug_nans config properly controls JAX NaN debugging.
+
+        This test verifies the full integration: YAML -> Config -> JAX setting.
+        """
+        # Save original JAX config state
+        original_debug_nans = jax.config.jax_debug_nans
+
+        try:
+            # Test 1: debug_nans=False (default) - should not enable JAX NaN debugging
+            config_dict = sample_config_dict.copy()
+            config_dict["prior"]["specification_file"] = str(sample_prior_file)
+            config_dict["debug_nans"] = False
+
+            config_file = temp_dir / "config_debug_false.yaml"
+            with open(config_file, "w") as f:
+                yaml.dump(config_dict, f)
+
+            config = parser.load_config(config_file)
+            assert config.debug_nans is False
+
+            # Test 2: debug_nans=True - should enable JAX NaN debugging
+            config_dict["debug_nans"] = True
+            config_file = temp_dir / "config_debug_true.yaml"
+            with open(config_file, "w") as f:
+                yaml.dump(config_dict, f)
+
+            config = parser.load_config(config_file)
+            assert config.debug_nans is True
+
+            # Simulate what run_inference.py does
+            if config.debug_nans:
+                jax.config.update("jax_debug_nans", True)
+
+            # Verify JAX config was updated
+            assert jax.config.jax_debug_nans is True
+
+        finally:
+            # Restore original JAX config state
+            jax.config.update("jax_debug_nans", original_debug_nans)

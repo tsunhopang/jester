@@ -342,7 +342,7 @@ def create_combined_likelihood(
         elif config.type == "radio":
             params = config.parameters
             pulsars = params["pulsars"]  # Required, validated by schema
-            nb_masses = params.get("nb_masses", 100)
+            penalty_value = params.get("penalty_value", -1e5)
 
             # Create one RadioTimingLikelihood per pulsar
             for pulsar in pulsars:
@@ -350,7 +350,7 @@ def create_combined_likelihood(
                     psr_name=pulsar["name"],
                     mean=pulsar["mass_mean"],
                     std=pulsar["mass_std"],
-                    nb_masses=nb_masses,
+                    penalty_value=penalty_value,
                 )
                 likelihoods.append(radio_likelihood)
 

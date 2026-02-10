@@ -272,6 +272,7 @@ The JESTER inference system uses YAML configuration files validated by Pydantic 
     # Top-level fields
     doc += "### Top-Level Configuration\n\n"
     doc += generate_field_docs(top_fields)
+    doc += "\n"  # Add blank line before next section
 
     # Transform fields
     doc += "### Transform Configuration (`transform:`)\n\n"
@@ -294,12 +295,14 @@ The JESTER inference system uses YAML configuration files validated by Pydantic 
     doc += "### Prior Configuration (`prior:`)\n\n"
     doc += "Specifies prior distributions for parameters.\n\n"
     doc += generate_field_docs(prior_fields)
+    doc += "\n"  # Add blank line before next section
 
     # Likelihood fields
     doc += "### Likelihood Configuration (`likelihoods:`)\n\n"
     doc += "List of observational constraints. Each likelihood has:\n\n"
     likelihood_fields = extract_field_info(LikelihoodConfig)
     doc += generate_field_docs(likelihood_fields)
+    doc += "\n"  # Add blank line before next section
 
     # Document likelihood-specific parameters
     doc += "**Likelihood-Specific Parameters** (`parameters:`):\n\n"
@@ -338,6 +341,7 @@ The JESTER inference system uses YAML configuration files validated by Pydantic 
     doc += '    psr_name: "J0740+6620"  # Pulsar name (for labeling)\n'
     doc += "    mass_mean: 2.08         # Mean mass (solar masses)\n"
     doc += "    mass_std: 0.07          # Mass uncertainty (1-sigma)\n"
+    doc += "    penalty_value: -1e5     # Penalty for invalid TOV solutions (default: -1e5)\n"
     doc += "    nb_masses: 100          # Mass grid size for marginalization\n"
     doc += "```\n\n"
 
@@ -489,6 +493,7 @@ The JESTER inference system uses YAML configuration files validated by Pydantic 
     doc += "    parameters:\n"
     doc += "      mass_mean: 2.08\n"
     doc += "      mass_std: 0.07\n"
+    doc += "      penalty_value: -1e5  # Optional, default: -1e5\n"
     doc += "  \n"
     doc += '  - type: "chieft"\n'
     doc += "    enabled: true\n\n"

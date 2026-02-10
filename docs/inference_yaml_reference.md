@@ -21,9 +21,10 @@ The JESTER inference system uses YAML configuration files validated by Pydantic 
 
 # Top-level configuration
 seed: 43
-postprocessing: enabled=True make_cornerplot=True make_massradius=True make_pressuredensity=True make_histograms=True make_cs2=True prior_dir=None injection_eos_path=None
+postprocessing: enabled=True make_cornerplot=True make_massradius=True make_masslambda=True make_pressuredensity=True make_histograms=True make_cs2=True prior_dir=None injection_eos_path=None
 dry_run: False
 validate_only: False
+debug_nans: False
 
 # Transform configuration
 transform:
@@ -32,10 +33,12 @@ transform:
   nmax_nsat: 25.0
   nb_CSE: 8
   n_points_high: 500
+  nmin_MM_nsat: 0.75
   min_nsat_TOV: 0.75
   ndat_TOV: 100
   nb_masses: 100
   crust_name: "DH"
+  tov_solver: "gr"
 
 # Prior configuration
 prior:
@@ -75,7 +78,7 @@ data_paths: {}
 - `sampler`: `typing.Union[jesterTOV.inference.config.schema.FlowMCSamplerConfig, jesterTOV.inference.config.schema.BlackJAXNSAWConfig, jesterTOV.inference.config.schema.SMCRandomWalkSamplerConfig, jesterTOV.inference.config.schema.SMCNUTSSamplerConfig]` (**required**)
 
 - `postprocessing`: `PostprocessingConfig` (optional)
-  - Default: `enabled=True make_cornerplot=True make_massradius=True make_pressuredensity=True make_histograms=True make_cs2=True prior_dir=None injection_eos_path=None`
+  - Default: `enabled=True make_cornerplot=True make_massradius=True make_masslambda=True make_pressuredensity=True make_histograms=True make_cs2=True prior_dir=None injection_eos_path=None`
 
 - `data_paths`: `dict[str, str]` (optional)
   - Default: `{}`
@@ -85,6 +88,11 @@ data_paths: {}
 
 - `validate_only`: `bool` (optional)
   - Default: `False`
+
+- `debug_nans`: `bool` (optional)
+  - Default: `False`
+  - Enable JAX NaN debugging for catching numerical issues during inference
+
 ### Transform Configuration (`transform:`)
 
 Defines how EOS parameters are transformed to observables.
@@ -103,6 +111,9 @@ Defines how EOS parameters are transformed to observables.
 - `n_points_high`: `int` (optional)
   - Default: `500`
 
+- `nmin_MM_nsat`: `float` (optional)
+  - Default: `0.75`
+
 - `min_nsat_TOV`: `float` (optional)
   - Default: `0.75`
 
@@ -114,6 +125,9 @@ Defines how EOS parameters are transformed to observables.
 
 - `crust_name`: `"DH" | "BPS" | "DH_fixed" | "SLy"` (optional)
   - Default: `"DH"`
+
+- `tov_solver`: `"gr" | "post" | "scalar_tensor"` (optional)
+  - Default: `"gr"`
 **Validation Rules**:
 - If `type: "metamodel"`, then `nb_CSE` must be 0 (or omitted)
 - If `type: "metamodel_cse"`, then `nb_CSE` must be > 0
@@ -128,6 +142,7 @@ Defines how EOS parameters are transformed to observables.
 Specifies prior distributions for parameters.
 
 - `specification_file`: `str` (**required**)
+
 ### Likelihood Configuration (`likelihoods:`)
 
 List of observational constraints. Each likelihood has:
@@ -139,6 +154,7 @@ List of observational constraints. Each likelihood has:
 
 - `parameters`: `dict[str, Any]` (optional)
   - Default: `{}`
+
 **Likelihood-Specific Parameters** (`parameters:`):
 
 #### Gravitational Wave (`type: "gw"`)
@@ -174,6 +190,7 @@ List of observational constraints. Each likelihood has:
     psr_name: "J0740+6620"  # Pulsar name (for labeling)
     mass_mean: 2.08         # Mean mass (solar masses)
     mass_std: 0.07          # Mass uncertainty (1-sigma)
+    penalty_value: -1e5     # Penalty for invalid TOV solutions (default: -1e5)
     nb_masses: 100          # Mass grid size for marginalization
 ```
 
@@ -468,6 +485,7 @@ likelihoods:
     parameters:
       mass_mean: 2.08
       mass_std: 0.07
+      penalty_value: -1e5  # Optional, default: -1e5
   
   - type: "chieft"
     enabled: true
