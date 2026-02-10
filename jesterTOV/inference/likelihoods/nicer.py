@@ -115,8 +115,8 @@ class NICERLikelihood(LikelihoodBase):
         amsterdam_samples = self.amsterdam_flow.sample(key, (N_masses_evaluation,))
         maryland_samples = self.maryland_flow.sample(key, (N_masses_evaluation,))
         # Extract only masses, discard radius values from flow
-        self.amsterdam_fixed_mass_samples = samples[:, :1]  # Shape: [N, 1]
-        self.maryland_fixed_mass_samples = samples[:, :1]  # Shape: [N, 1]
+        self.amsterdam_fixed_mass_samples = amsterdam_samples[:, :1]  # Shape: [N, 1]
+        self.maryland_fixed_mass_samples = maryland_samples[:, :1]  # Shape: [N, 1]
         logger.info(
             f"Pre-sampled Amsterdam mass range: mass=[{jnp.min(self.amsterdam_fixed_mass_samples[:, 0]):.3f}, "
             f"{jnp.max(self.amsterdam_fixed_mass_samples[:, 0]):.3f}] Msun"
@@ -167,7 +167,7 @@ class NICERLikelihood(LikelihoodBase):
 
             # Evaluate Amsterdam KDE at (mass, radius)
             mr_point = jnp.array([[mass], [radius]])  # Shape: (2, 1)
-            logpdf = self.amsterdam_posterior.logpdf(mr_point)
+            logpdf = self.amsterdam_flow.log_prob(mr_point)
 
             # Penalty for mass exceeding Mtov
             penalty = jnp.where(mass > mtov, self.penalty_value, 0.0)
@@ -193,7 +193,7 @@ class NICERLikelihood(LikelihoodBase):
 
             # Evaluate Maryland KDE at (mass, radius)
             mr_point = jnp.array([[mass], [radius]])  # Shape: (2, 1)
-            logpdf = self.maryland_posterior.logpdf(mr_point)
+            logpdf = self.maryland_flow.log_prob(mr_point)
 
             # Penalty for mass exceeding Mtov
             penalty = jnp.where(mass > mtov, self.penalty_value, 0.0)
@@ -203,13 +203,13 @@ class NICERLikelihood(LikelihoodBase):
         # Use jax.lax.map with batching for memory-efficient processing
         amsterdam_logprobs = jax.lax.map(
             process_sample_amsterdam,
-            amsterdam_mass_samples,
+            self.amsterdam_fixed_mass_samples,
             batch_size=self.N_masses_batch_size,
         )
 
         maryland_logprobs = jax.lax.map(
             process_sample_maryland,
-            maryland_mass_samples,
+            self.maryland_fixed_mass_samples,
             batch_size=self.N_masses_batch_size,
         )
 

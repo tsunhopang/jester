@@ -316,6 +316,7 @@ def create_combined_likelihood(
             pulsars = params["pulsars"]  # Required, validated by schema
             N_masses_evaluation = params.get("N_masses_evaluation", 100)
             N_masses_batch_size = params.get("N_masses_batch_size", 20)
+            penalty_value = params.get("penalty_value", -99999.0)
 
             # Create one NICERLikelihood per pulsar
             for pulsar in pulsars:
@@ -335,6 +336,7 @@ def create_combined_likelihood(
                     maryland_model_dir=model_dir_mry,
                     N_masses_evaluation=N_masses_evaluation,
                     N_masses_batch_size=N_masses_batch_size,
+                    penalty_value=penalty_value
                 )
                 likelihoods.append(nicer_likelihood)
 

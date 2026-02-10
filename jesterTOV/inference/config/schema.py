@@ -12,6 +12,7 @@ This ensures the user documentation stays in sync with the actual validation rul
 from pydantic import BaseModel, Field, field_validator, ValidationInfo, ConfigDict
 from typing import Literal, Dict, Any, Union, Annotated
 from pydantic import Discriminator
+import warnings
 
 
 class TransformConfig(BaseModel):
@@ -279,6 +280,13 @@ class LikelihoodConfig(BaseModel):
                 if "name" not in event:
                     raise ValueError(f"Event {i} missing required 'name' field")
                 # model_dir is now optional - will use presets if not provided
+                if "model_dir" not in event:
+                    warnings.warn(
+                        f"GW event {event['name']} missing 'model_dir'. "
+                        f"Default preset model will be used.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
             # Set defaults for optional parameters (resampled version)
             v.setdefault("penalty_value", -99999.0)
@@ -290,7 +298,7 @@ class LikelihoodConfig(BaseModel):
             if "pulsars" not in v:
                 raise ValueError(
                     "NICER likelihood requires 'pulsars' parameter "
-                    "(list of dicts with 'name', 'amsterdam_model_dir', and 'maryland_model_dir')"
+                    "(list of dicts with 'name', and optional 'amsterdam_model_dir', and 'maryland_model_dir')"
                 )
 
             pulsars = v["pulsars"]
@@ -301,18 +309,26 @@ class LikelihoodConfig(BaseModel):
             for i, pulsar in enumerate(pulsars):
                 if not isinstance(pulsar, dict):
                     raise ValueError(
-                        f"Pulsar {i} must be a dict with 'name', 'amsterdam_model_dir', "
+                        f"Pulsar {i} must be a dict with 'name', and optional 'amsterdam_model_dir', "
                         f"and 'maryland_model_dir' keys"
                     )
                 if "name" not in pulsar:
                     raise ValueError(f"Pulsar {i} missing required 'name' field")
+                
                 if "amsterdam_model_dir" not in pulsar:
-                    raise ValueError(
-                        f"Pulsar {i} missing required 'amsterdam_model_dir' field"
+                    warnings.warn(
+                        f"Pulsar {i} ('{pulsar['name']}') missing 'amsterdam_model_dir'. "
+                        f"Default preset model will be used for Amsterdam analysis.",
+                        UserWarning,
+                        stacklevel=2,
                     )
+                
                 if "maryland_model_dir" not in pulsar:
-                    raise ValueError(
-                        f"Pulsar {i} missing required 'maryland_model_dir' field"
+                    warnings.warn(
+                        f"Pulsar {i} ('{pulsar['name']}') missing 'maryland_model_dir'. "
+                        f"Default preset model will be used for Maryland analysis.",
+                        UserWarning,
+                        stacklevel=2,
                     )
 
             # Set defaults for optional parameters

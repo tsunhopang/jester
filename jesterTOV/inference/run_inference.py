@@ -487,9 +487,6 @@ def main(config_path: str) -> None:
             logger.info(
                 f"    N masses evaluation: {lk.parameters.get('N_masses_evaluation', 100)}"
             )
-            logger.info(
-                f"    KDE bandwidth: {lk.parameters.get('kde_bandwidth', 0.02)}"
-            )
         elif lk.type == "radio":
             pulsars = lk.parameters.get("pulsars", [])
             logger.info(f"    Pulsars: {[p['name'] for p in pulsars]}")
