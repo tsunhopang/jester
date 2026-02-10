@@ -314,7 +314,7 @@ class LikelihoodConfig(BaseModel):
                     )
                 if "name" not in pulsar:
                     raise ValueError(f"Pulsar {i} missing required 'name' field")
-                
+
                 if "amsterdam_model_dir" not in pulsar:
                     warnings.warn(
                         f"Pulsar {i} ('{pulsar['name']}') missing 'amsterdam_model_dir'. "
@@ -322,7 +322,7 @@ class LikelihoodConfig(BaseModel):
                         UserWarning,
                         stacklevel=2,
                     )
-                
+
                 if "maryland_model_dir" not in pulsar:
                     warnings.warn(
                         f"Pulsar {i} ('{pulsar['name']}') missing 'maryland_model_dir'. "

@@ -336,7 +336,7 @@ def create_combined_likelihood(
                     maryland_model_dir=model_dir_mry,
                     N_masses_evaluation=N_masses_evaluation,
                     N_masses_batch_size=N_masses_batch_size,
-                    penalty_value=penalty_value
+                    penalty_value=penalty_value,
                 )
                 likelihoods.append(nicer_likelihood)
 
